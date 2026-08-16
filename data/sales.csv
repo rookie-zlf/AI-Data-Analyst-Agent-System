@@ -1,0 +1,9 @@
+date,product,region,sales,quantity
+2026-01-01,iPhone,East,12000,10
+2026-01-02,MacBook,East,18000,6
+2026-01-03,iPhone,West,15000,12
+2026-01-04,iPad,South,8000,8
+2026-01-05,MacBook,North,21000,7
+2026-01-06,iPhone,South,13500,11
+2026-01-07,iPad,West,9000,9
+2026-01-08,MacBook,East,24000,8
