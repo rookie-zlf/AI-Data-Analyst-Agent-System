@@ -1,5 +1,12 @@
+from app.tools.data_tools import profile_csv
+
 def main():
-    print("Hello from ai-data-analyst-agent-system!")
+    result = profile_csv.invoke(
+        {
+            "file_path":"data/sales.csv"
+        }
+    )
+    print(result)
 
 
 if __name__ == "__main__":
