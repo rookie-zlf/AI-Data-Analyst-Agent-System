@@ -29,6 +29,8 @@ def profile_csv(file_path: str) -> str:
 
     result.append("\n===missing values===")
     result.append(df.isnull().sum().to_string())
+    result.append("\n===Duplicate rows===")
+    result.append(str(df.duplicated().sum()))
 
     numeric_df = df.select_dtypes(include = "number")
 
