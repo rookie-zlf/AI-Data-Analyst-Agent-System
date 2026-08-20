@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 from langchain.tools import tool
+from typing import Literal
 
 
 
@@ -43,7 +44,72 @@ def profile_csv(file_path: str) -> str:
 
 
 
+@tool
+def aggregate_csv(
+    file_path : str,
+    metric: str,
+    operation: Literal['sum','mean','max','min','count'] = 'sum',
+     group_by: str | None = None,
+     filters: dict[str,str] | None = None
+)->str:
 
+    """对csv数据进行分组聚合分析。
+    当用户要求按某个字段分组，并计算总和、平均值、最大值、最小值或数量时使用这个工具。
+    Args:
+        file_path:csv文件路径
+        group_by：用于分组的字段名
+        metric：需要统计的字段名
+        operation：聚合方式，可选 sum、mean、max、min、count
+        filters:可筛选条件，例如：{"product":"MacBook","region":"East"}
+        """
+    path = Path(file_path)
+    if not path.exists():
+        return f"文件不存在：{file_path}"
+
+    try:
+        df = pd.read_csv(path)
+    except Exception as e:
+        return f"读取文件失败：{e}"
+        
+    #条件筛选，for循环多次过滤pd文件
+    if filters:
+        for column,value in filters.items():
+            if column not in df.columns:
+                return f'筛选字段不存在：{column}'
+
+            df = df[
+                df[column].astype(str).str.lower() == str(value).lower()
+            ]
+
+    if df.empty:
+        return f'筛选后没有数据。'
+
+    #检查统计字段
+    if metric not in df.columns:
+        return f"统计字段不存在:{metric}"
+
+    try:
+        if group_by:
+            if group_by not in df.columns:
+                return f'分组字段不存在{group_by}'
+            
+            result = (
+                df.groupby(group_by)[metric]
+                .agg(operation)
+                .sort_values(ascending=False)
+            )
+            return result.to_string()
+
+        #不分组，直接计算
+        result = df[metric].agg(operation)
+        return f'{operation}({metric}) = {result}'
+    
+
+    except Exception as e:
+        return f"聚合分析失败：{e}"
+
+
+    return result.to_string()
 
     
 
