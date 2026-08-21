@@ -1,4 +1,4 @@
-from app.tools.data_tools import profile_csv,aggregate_csv
+from app.tools.data_tools import profile_csv,aggregate_csv,filter_csv
 from langchain_deepseek import ChatDeepSeek
 from langchain.agents import create_agent
 from dotenv import load_dotenv
@@ -14,7 +14,8 @@ def create_data_agent():
     agent = create_agent(
         model = model,
         tools = [profile_csv,
-                  aggregate_csv],
+                  aggregate_csv,
+                  filter_csv],
 
         #可靠性约束
         system_prompt = """
@@ -25,7 +26,7 @@ def create_data_agent():
         2.所有数据结论必须基于工具实际返回的结果。
         3.不得编造工具没有提供的数据、单位、字段含义或统计结果。
         4.如果现有工具不足以完成用户要求，应该明确说明，而不是自行计算或猜测。
-        5.样本量较少时，赢谨慎描述统计规律，避免过度推断。
+        5.样本量较少时，谨慎描述统计规律，避免过度推断。
         7. 如果用户的问题能够直接通过已有分析工具完成，不要为了确认数据结构而重复调用不必要的工具。只有当字段结构不明确时，才优先调用数据概况工具。
 
         请用清晰、简洁、有条理的方式回答用户。
@@ -36,6 +37,7 @@ def create_data_agent():
 
 def main():
     agent = create_data_agent()
+    #记忆对话
     conversation = []
     print('===AI data analyst Agent 已启动=== ')
     print('输入 exit / quit / 退出 可以结束程序')
@@ -67,17 +69,18 @@ def main():
            
 
             last_message = conversation[-1]
+            
 
             if hasattr(last_message,'content'):
                 answer = last_message.content
             else:
                 answer = last_message['content']
-
             print(f'\n Agent:{answer}')
 
         except Exception as e:
             print(f'发生异常：{e}')
 
+  
 
 
 

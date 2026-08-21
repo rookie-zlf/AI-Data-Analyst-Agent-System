@@ -109,8 +109,71 @@ def aggregate_csv(
         return f"聚合分析失败：{e}"
 
 
-    return result.to_string()
 
     
+@tool
+def filter_csv(
+    file_path : str,
+    column : str,
+    operator : str,
+    value: str,
+) -> str:
+    """根据条件筛选CSV数据。
+    当用户要求查找满足某些条件的数据记录时使用。
+    Args:
+        file_path: csv路径
+        column:筛选字段，例如 sales、product、region
+        operator:比较方式：>,<,>=,<=,==
+        value:筛选目标值"""
+
+    path = Path(file_path)
+    if not path.exists():
+        return f'目标csv文件不存在:{Path}'
+
+    try:
+        df = pd.read_csv(path)
+
+    except Exception as e:
+        print(f'读取失败：{e}')
+
+    if column not in df.columns:
+        return f'字段不存在:{column}'
+
+    try:
+        #'==' 需要去除，因为‘==’不仅可以用来匹配数字，也可以用来匹配字符串，当字符串匹配时，发现不能转换成数字自动删掉字符串变成NaN
+            if operator in {'>','<','>=','<='}:
+                df[column] = pd.to_numeric(
+                    df[column],
+                    errors='coerce'
+                )
+                value = float(value)
+
+            if operator == '>':
+                result = df[df[column]>value]
+            elif operator == '<':
+                result = df[df[column]<value]
+            elif operator == '>=':
+                result = df[df[column] >= value]
+            elif operator == '<=':
+                result = df[df[column] <= value]
+            elif operator == '==':
+                result = df[
+                    df[column].astype(str).str.lower()==str(value).lower()
+                ]
+            else:
+                return f'不支持的操作符:{operator}'
+
+    except Exception as e:
+            return f'筛选失败:{e}'
+
+    if result.empty:
+        return "没有找到符合条件的数据"
+
+    return result.to_string(index = False)
+    
+
+            
 
 
+
+    
