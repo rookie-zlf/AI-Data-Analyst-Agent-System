@@ -174,6 +174,69 @@ def filter_csv(
 
             
 
+@tool
+def top_n_csv(
+    file_path : str,
+    column : str,
+    n :int = 5,
+    order : Literal['largest','smallest'] = 'largest'
+) -> str:
+    '''根据指定字段返回csv中最大或最小的N条记录。
+    当用户询问"最高的几条"、"最低的几条"、“Top N”、“前N名”等排序问题时使用。
+    Args：
+        file_path : CSV文件路径。
+        column:用于排序字段，例如：sales、quantity。
+        n:返回记录数量
+        order:largest表示最大的N条，smallest表示最小的N条
+    '''
+    path=Path(file_path)
+    if not path.exists():
+        return f'文件不存在{file_path}'
+    
+    try:
+        df = pd.read_csv(path)
+
+    except Exception as e:
+        return f'读取csv失败：{e}'
+
+    if column not in df.columns:
+        return (
+            f'排序字段不存在：{column}\n'
+            f'可用字段：{','.join(df.columns)}'
+        )
+    if n <= 0:
+        return f'n必须大于0'
+
+    try:
+        numeric_column = pd.to_numeric(
+            df[column],
+            errors = 'coerce'
+        )
+        valid_mask = numeric_column.notna()
+        df = df.loc[valid_mask].copy()
+        df[column] = numeric_column[valid_mask]
+        if order  == 'largest':
+            result = df.sort_values(by = column,ascending=False).head(n)
+        elif order == 'smallest':
+            result = df.sort_values(by=column,ascending=True).head(n)
+        else:
+            return f'不支持的排序方式：{order}'
+
+    except Exception as e:
+        return f'不支持的查询方式:{order}'
+
+    if result.empty:
+        return f'没有可用于排序的数据'
+
+    return result.to_string(index=False)
+
+    
+
+
+
+
+
+
 
 
     
