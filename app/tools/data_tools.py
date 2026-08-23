@@ -233,7 +233,62 @@ def top_n_csv(
     
 
 
+@tool
+def calculate_unit_price(
+    file_path:str,
+    group_by:str,
+    sales_column:str,
+    quantity_column:str
+) -> str:
+    """计算分组后的单价。
+    单价 = 总销售额/总销量
+    Args:
+        file_path:
+            csv文件路径
+        group_by:
+            分组字段,例如product
+        sales_column:
+            销售额字段
+        quantity_column:
+        销售数量字段
+    """
+    path = Path(file_path)
+    if not path.exists():
+        return f'文件不存在：{file_path}'
+    
+    try:
+        df = pd.read_csv(path)
 
+        if group_by not in df.columns:
+            return f'不存在字段{group_by}'
+
+        if sales_column not in df.columns:
+            return f'不存在字段{sales_column}'
+
+        if quantity_column not in df.columns:
+            return f'不存在字段{quantity_column}'
+
+        result = (
+            df.groupby(group_by).agg(
+                {
+                    sales_column:'sum',
+                    quantity_column:'sum'
+                }
+            )
+        ).reset_index()
+
+
+
+        result['unit_price'] = (
+            result[sales_column]/result[quantity_column]
+        )
+
+        return result.sort_values(
+            'unit_price',
+            ascending=False
+        ).to_string()
+    except Exception as e:
+        return f'文件读取失败：{e}'
 
 
 

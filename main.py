@@ -1,4 +1,4 @@
-from app.tools.data_tools import profile_csv,aggregate_csv,filter_csv,top_n_csv
+from app.tools.data_tools import profile_csv,aggregate_csv,filter_csv,top_n_csv,calculate_unit_price
 from langchain_deepseek import ChatDeepSeek
 from langchain.agents import create_agent
 from dotenv import load_dotenv
@@ -15,7 +15,9 @@ def create_data_agent():
         model = model,
         tools = [profile_csv,
                   aggregate_csv,
-                  filter_csv,top_n_csv],
+                  filter_csv,top_n_csv,
+                  calculate_unit_price
+                  ],
 
         #可靠性约束
         system_prompt = """
@@ -31,6 +33,17 @@ def create_data_agent():
         8. 当用户询问“最高、最低的前n条数据等问题时，应使用排序工具，不得自行猜测筛选阈值来代替排序。”
         请用清晰、简洁、有条理的方式回答用户。
         9.如果需要推导其他新指标如：单价、增长率、转化率等，必须先调用工具进行计算，不允许仅凭已有的字段直接推导。
+        10.如果已有工具能够直接完成任务，不要先调用数据概览工具。只有字段未知或任务需要探索数据结构时才调用。
+
+        工具调用策略：
+        1.如果用户问题已经明确指定分析目标，直接调用对应的分析工具，不要调用profile_csv工具。
+        2.不要为了确认字段而默认调用 profile_csv。已有分析工具内部会检查字段有效性。
+        3.只有以下情况才调用 profile_csv:
+            -用户要求查看数据概况
+            -用户没有明确分析目标
+            -需要探索未知数据结构
+        4.优先选择一步完成任务的专用工具，避免多个工具重复获取相同信息。
+
         """
     )
     return agent
@@ -45,7 +58,7 @@ def main():
 
 
     while(True):
-        user_input = input('\n 你：').strip()
+        user_input = input('\n user：').strip()
         if user_input.lower() in {'exit','quit','退出'}:
             print('\n agent :再见')
             break
