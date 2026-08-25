@@ -1,4 +1,5 @@
 from app.tools.data_tools import profile_csv,aggregate_csv,filter_csv,top_n_csv,calculate_unit_price
+from app.tools.visualization_tools import polt_bar_chart
 from langchain_deepseek import ChatDeepSeek
 from langchain.agents import create_agent
 from dotenv import load_dotenv
@@ -16,7 +17,8 @@ def create_data_agent():
         tools = [profile_csv,
                   aggregate_csv,
                   filter_csv,top_n_csv,
-                  calculate_unit_price
+                  calculate_unit_price,
+                  polt_bar_chart
                   ],
 
         #可靠性约束
@@ -43,6 +45,18 @@ def create_data_agent():
             -用户没有明确分析目标
             -需要探索未知数据结构
         4.优先选择一步完成任务的专用工具，避免多个工具重复获取相同信息。
+
+        可视化工具：
+        当用户出现以下需求：
+            - 画图
+            - 绘制
+            - 可视化
+            - 柱状图
+            - 折线图
+            - 饼图
+            - 趋势图
+        应优先调用对应可视化工具。
+        不要仅用文字描述代替图表。
 
         """
     )
@@ -100,9 +114,6 @@ def main():
             print(f'发生异常：{e}')
 
   
-
-
-
 
 
 if __name__ == "__main__":
