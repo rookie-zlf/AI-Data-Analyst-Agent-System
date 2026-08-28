@@ -20,7 +20,7 @@ load_dotenv()
 def create_data_agent():
     model = ChatDeepSeek(
         model = 'deepseek-v4-flash',
-        temperature=0
+        temperature=0,
     )
     agent = create_agent(
         model = model,
