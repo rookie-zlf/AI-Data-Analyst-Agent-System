@@ -4,8 +4,11 @@ from fastapi import FastAPI,File,UploadFile
 from pydantic import BaseModel
 from app.agent import create_data_agent
 from uuid import uuid4
+import json
+
 #langchain官方的消息对象，不用自己手动维护dict消息1队列
 from langchain_core.messages import HumanMessage,AIMessage
+from app.session_store import save_session,get_session,get_session_ttl
 
 
 #定义请求模型
@@ -15,8 +18,6 @@ class ChatRequest(BaseModel):
 
 
 agent = create_data_agent()
-
-sessions = {}
 
 #创建后端应用
 app = FastAPI(
@@ -58,10 +59,14 @@ def up_load_csv(
             buffer
         )
 
-    sessions[session_id] = {
-        'file_path':save_path,
+    session_data = {
+        'file_path':str(save_path),
         'messages':[]
     }
+
+
+    save_session(session_id,session_data)
+    
 
     return {
         "success":True,
@@ -71,36 +76,50 @@ def up_load_csv(
     }
 
 
-@app.post("/chat")
-def chat(requset : ChatRequest):
+@app.post("/chat")## 每次 /chat 请求最终只保存一条用户消息和一条最终 AI 回复到 Redis
+def chat(request : ChatRequest):
 
-    session_id = requset.session_id
+    session_id = request.session_id
+    #查看对话剩余时间
+    life_remain_time = get_session_ttl(session_id)
 
-    if session_id  not in sessions:
-        return {
-            "success":False,
-            "message":"session不存在，请先上传csv文件。"
-        }
+    sessions_data = get_session(session_id)
 
+    if sessions_data is None:
+        return f"{request.session_id}不存在。"
 
-    session = sessions[session_id]
-
-    file_path = session['file_path']
-    messages = session['messages']
+    file_path = sessions_data['file_path']
+    messages = sessions_data['messages']
 
     user_message = (
         f"当前需要分析的的CSV文件路径是：{file_path}\n"
-        f"用户的问题:{requset.message}"
+        f"用户的问题:{request.message}"
     )
 
     messages.append(
-        HumanMessage(content=user_message)
+        {
+            'role':'user',
+            'content':user_message
+        }
     )
+
+    #格式翻译，将json格式翻译成langchain的格式
+
+    langchain_messages = []
+
+    #is比较是否为同一个对象，==比较值是否相等
+    for message  in sessions_data['messages']:
+        if message['role'] == 'user':
+            langchain_messages.append(HumanMessage(content=message['content']))
+        elif message['role'] == 'assistant':
+            langchain_messages.append(AIMessage(content = message['content']))
+
+
 
     #包含hunman，toolcall的所有消息,'把干净历史喂给agent'
     result = agent.invoke(
         {
-            'messages' : messages
+            'messages' : langchain_messages
         }
     )
 
@@ -109,15 +128,21 @@ def chat(requset : ChatRequest):
     answer = last_message.content
 
     messages.append(
-        AIMessage(content=answer)
+        {
+            'role':'assistant',
+            'content':answer
+        }
     )
 
-    sessions[session_id]["messages"] = messages
+    sessions_data['messages'] = messages
+
+    save_session(request.session_id,sessions_data)
 
     return {
         'success':True,
         'session_id':session_id,
-        'answer':answer
+        'answer':answer,
+        'remain_time':life_remain_time
     }
 
 

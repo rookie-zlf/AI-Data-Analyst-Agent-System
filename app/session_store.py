@@ -1,11 +1,15 @@
 #把对话信息通过redis持久化存储
 import redis
 import json
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 redis_client = redis.Redis(
-    host='localhost',
-    port = 6379,
-    decode_responses=True#解码回答
+    host=os.getenv("REDIS_HOST","localhost"),
+    port = int(os.getenv("REDIS_PORT",'6379')),
+    decode_responses=True# 将 Redis 返回的 bytes 自动解码为 str
 )
 
 
@@ -35,7 +39,7 @@ def save_session(session_id:str,session_data:dict):
 #提取redis信息
 def get_session(session_id:str)->dict:
 
-    key = session_id
+    key = get_session_key(session_id)
 
     data = redis_client.get(key)
 
@@ -45,3 +49,8 @@ def get_session(session_id:str)->dict:
     data_json = json.loads(data)
 
     return data_json
+
+#看会话剩余存活时间
+def get_session_ttl(session_id:str) -> int:
+    key = get_session_key(session_id)
+    return redis_client.ttl(key)
