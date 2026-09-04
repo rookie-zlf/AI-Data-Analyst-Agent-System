@@ -52,3 +52,6 @@ UPDATE files SET filename = 'new_sales.csv' WHERE id = 1;
 DELETE FROM files WHERE id =1;
 
 
+
+--@block
+SELECT id,session_id,filename,file_path,created_at FROM files ORDER BY id DESC LIMIT 5;

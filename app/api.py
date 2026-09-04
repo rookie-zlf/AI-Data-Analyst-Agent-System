@@ -4,7 +4,7 @@ from fastapi import FastAPI,File,UploadFile
 from pydantic import BaseModel
 from app.agent import create_data_agent
 from uuid import uuid4
-import json
+from app.postgres_store import create_file_record
 
 #langchain官方的消息对象，不用自己手动维护dict消息1队列
 from langchain_core.messages import HumanMessage,AIMessage
@@ -66,7 +66,8 @@ def up_load_csv(
 
 
     save_session(session_id,session_data)
-    
+
+    create_file_record(session_id,filename,str(save_path))
 
     return {
         "success":True,

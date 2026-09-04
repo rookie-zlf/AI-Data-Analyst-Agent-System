@@ -1,43 +1,30 @@
 import os
 import psycopg
 from dotenv import load_dotenv
+from postgres_store import create_file_record
 
 load_dotenv()
 
-
 conn = psycopg.connect(
-    host = os.getenv("POSTGRES_HOST"),
-    port = int (os.getenv("POSTGRES_PORT")),
-    dbname = os.getenv("POSTGRES_DB"),
-    user = os.getenv("POSTGRES_USER"),
-    password  = os.getenv("POSTGRES_PASSWORD")
+        host=os.getenv("POSTGRES_HOST"),
+        port=int(os.getenv("POSTGRES_PORT")),
+        dbname=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD")
 )
 
+create_file_record("12345678-1234-1234-1234-123456789abc", "demo.csv","data/uploads/demo.csv")
 
-print("Post 连接成功")
 
 cursor = conn.cursor()
 
-#执行查询
-cursor.execute(
-    """SELECT id,filename,created_at 
-        FROM files;
-        """
-)
+cursor.execute("""
+SELECT * FROM files ORDER BY id DESC LIMIT 3;""")
 
-cursor.execute(
-    """SELECT id,filename,created_at 
-        FROM files where id=1;
-        """
-)
-#拿出所有查询结果,返回一个列表
 rows = cursor.fetchall()
 
-row = rows[0]
-
-print(row)
+print(rows)
 
 
-cursor.close()
-conn.close()
+
 
