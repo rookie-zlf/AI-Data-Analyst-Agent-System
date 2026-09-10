@@ -9,6 +9,10 @@ from app.postgres_store import create_file_record,delete_file_record
 #langchain官方的消息对象，不用自己手动维护dict消息1队列
 from langchain_core.messages import HumanMessage,AIMessage
 from app.session_store import save_session,get_session,get_session_ttl,delete_session
+import logging
+
+from fastapi.responses import JSONResponse
+
 
 
 #定义请求模型
@@ -16,6 +20,7 @@ class ChatRequest(BaseModel):
     message :str
     session_id :str
 
+logger = logging.getLogger(__name__)
 
 agent = create_data_agent()
 
@@ -38,7 +43,6 @@ def root():
 
 
 @app.post("/upload")
-
 #需要用户上传一个csv文件
 def up_load_csv(
     file : UploadFile = File(...)
@@ -46,20 +50,28 @@ def up_load_csv(
   
     filename = Path(file.filename).name
     if not filename.lower().endswith('.csv'):
-        return {
+        return JSONResponse(
+            status_code = 400,
+            content={
             'success':False,
             'message':'目前只支持CSV文件'
-        }
+        })
 
     session_id = str(uuid4())
     #是一个path对象，保存文件的路径，可以通过调用对象方法操作文件
     save_path = UPLOAD_DIR / f'{session_id}_{filename}'
+
+    file_saved = False
+    redis_saved = False
+    SQL_saved = False
+
     try:
         with save_path.open('wb') as buffer:
             shutil.copyfileobj(
                  file.file,
                  buffer
                 )
+        file_saved = True
 
         session_data = {
             'file_path':str(save_path),
@@ -68,8 +80,10 @@ def up_load_csv(
 
 
         save_session(session_id,session_data)
+        redis_saved = True
 
         create_file_record(session_id,filename,str(save_path))
+        SQL_saved = True
 
         return {
                 "success":True,
@@ -78,17 +92,38 @@ def up_load_csv(
                 "file_path":str(save_path)
           }
     except Exception as e:
-        delete_session(session_id)
-        if save_path.exists():
-            save_path.unlink()#删除这个文件
-        delete_file_record(session_id)
+        if redis_saved:
+            try:
+                delete_session(session_id)
+            except Exception as e:
+                print(f'回滚redis失败:{str(e)}')
+        if file_saved and save_path.exists():
+            try:
+                save_path.unlink()#删除这个文件
+            except Exception as e:
+                print(f'回滚文件失败:{str(e)}')
+        if SQL_saved:
+            try:
+                delete_file_record(session_id)
+            except Exception as e:
+                print(f'回滚sql失败:{str(e)}')
+
+        #它只能在 except 里用，并且会自动把当前异常的 traceback 一起记录下来。
+        #用户看简单提示，开发者看详细错误。
+        logger.exception(
+            '上传文件失败，session_id = %s,filename = %s',
+            session_id,filename
+        )
+
+        return JSONResponse(
+            status_code=500,
+            content={
+            "success":False,
+            "message":f'上传文件失败,请稍后重试。'
+        })        
         
 
-        return {
-            "success":False,
-            "message":f'上传文件失败：{str(e)}'
-        }        
-        
+
 
 @app.post("/chat")## 每次 /chat 请求最终只保存一条用户消息和一条最终 AI 回复到 Redis
 def chat(request : ChatRequest):

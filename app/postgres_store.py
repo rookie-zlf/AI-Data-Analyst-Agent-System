@@ -23,28 +23,27 @@ def create_file_record(
         filename : str,
         file_path : str
 ):
-    conn = get_connection()
-    cursor = conn.cursor()
+   with get_connection() as conn:#自动保护写入数据，替代cursor.close()防止数据泄露
+        with conn.cursor() as cursor:
 
-    cursor.execute(
-        """INSERT INTO files (session_id,filename,file_path) VALUES (%s,%s,%s)"""
-        ,
-        (session_id,filename,file_path,)
-    )
-    conn.commit() # 提交事务,正式确认修改
+            cursor.execute(
+                """INSERT INTO files (session_id,filename,file_path) VALUES (%s,%s,%s)"""
+                ,
+                (session_id,filename,file_path,)
+            )
+    
 
-    cursor.close()
-    conn.close()
+    
+
 
 
 
 def delete_file_record(session_id :str):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM files WHERE session_id = %s",
-        (session_id,)
-    )
-    conn.commit() # 提交事务,正式确认修改
-    cursor.close()
-    conn.close()
+
+   with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM files WHERE session_id = %s",
+                (session_id,)
+            )
+    
