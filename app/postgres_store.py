@@ -35,3 +35,16 @@ def create_file_record(
 
     cursor.close()
     conn.close()
+
+
+
+def delete_file_record(session_id :str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM files WHERE session_id = %s",
+        (session_id,)
+    )
+    conn.commit() # 提交事务,正式确认修改
+    cursor.close()
+    conn.close()

@@ -4,11 +4,11 @@ from fastapi import FastAPI,File,UploadFile
 from pydantic import BaseModel
 from app.agent import create_data_agent
 from uuid import uuid4
-from app.postgres_store import create_file_record
+from app.postgres_store import create_file_record,delete_file_record
 
 #langchain官方的消息对象，不用自己手动维护dict消息1队列
 from langchain_core.messages import HumanMessage,AIMessage
-from app.session_store import save_session,get_session,get_session_ttl
+from app.session_store import save_session,get_session,get_session_ttl,delete_session
 
 
 #定义请求模型
@@ -23,6 +23,7 @@ agent = create_data_agent()
 app = FastAPI(
     title = "AI Data Analyst Agent System"
               )
+
 
 UPLOAD_DIR = Path("data/uploads")
 
@@ -51,31 +52,43 @@ def up_load_csv(
         }
 
     session_id = str(uuid4())
+    #是一个path对象，保存文件的路径，可以通过调用对象方法操作文件
     save_path = UPLOAD_DIR / f'{session_id}_{filename}'
+    try:
+        with save_path.open('wb') as buffer:
+            shutil.copyfileobj(
+                 file.file,
+                 buffer
+                )
 
-    with save_path.open('wb') as buffer:
-        shutil.copyfileobj(
-            file.file,
-            buffer
-        )
-
-    session_data = {
-        'file_path':str(save_path),
-        'messages':[]
-    }
+        session_data = {
+            'file_path':str(save_path),
+            'messages':[]
+         }
 
 
-    save_session(session_id,session_data)
+        save_session(session_id,session_data)
 
-    create_file_record(session_id,filename,str(save_path))
+        create_file_record(session_id,filename,str(save_path))
 
-    return {
-        "success":True,
-        "session_id":session_id,
-        "filename":filename,
-        "file_path":str(save_path)
-    }
+        return {
+                "success":True,
+                "session_id":session_id,
+                "filename":filename,
+                "file_path":str(save_path)
+          }
+    except Exception as e:
+        delete_session(session_id)
+        if save_path.exists():
+            save_path.unlink()#删除这个文件
+        delete_file_record(session_id)
+        
 
+        return {
+            "success":False,
+            "message":f'上传文件失败：{str(e)}'
+        }        
+        
 
 @app.post("/chat")## 每次 /chat 请求最终只保存一条用户消息和一条最终 AI 回复到 Redis
 def chat(request : ChatRequest):

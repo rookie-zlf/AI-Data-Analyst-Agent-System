@@ -54,3 +54,15 @@ def get_session(session_id:str)->dict:
 def get_session_ttl(session_id:str) -> int:
     key = get_session_key(session_id)
     return redis_client.ttl(key)
+
+
+def delete_session(session_id : str):
+    key = get_session_key(session_id)
+    redis_client.delete(key)
+
+
+    
+
+
+
+    

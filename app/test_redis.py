@@ -1,4 +1,4 @@
-from session_store import save_session,get_session
+from session_store import save_session,get_session,get_session_ttl,delete_session
 
 session_data = {
     'file_path':'data/uploads/sales.csv',
@@ -15,9 +15,15 @@ session_data = {
 }
 
 
-save_session('session:001',session_data)
+save_session('001',session_data)
 
-session = get_session("session:001")
+session = get_session("001")
+
 
 print(session)
 print(type(session))
+print('==========================================================')
+session = delete_session("001")
+print(session)
+
+
