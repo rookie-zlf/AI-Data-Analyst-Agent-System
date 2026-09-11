@@ -35,22 +35,39 @@ def create_file_record(
                 (session_id,filename,file_path,)
             )
 
-            cursor.execute(
-                "SELECT * FROM files2"
-            )
     
-
-    
-
-
-
 
 def delete_file_record(session_id :str):
-
    with get_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
                 "DELETE FROM files WHERE session_id = %s",
                 (session_id,)
             )
-    
+
+
+
+def list_files(limit : int =10):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """SELECT id,session_id,filename,created_at
+                FROM files
+                ORDER BY id
+                LIMIT %s"""
+                ,
+                (limit,)
+            ) 
+            return cursor.fetchall()
+
+
+def count_files():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COUNT(*) FROM files;
+                """#统计表内所有信息
+            )
+            row = cursor.fetchone()#返回一个元组
+            return row[0]

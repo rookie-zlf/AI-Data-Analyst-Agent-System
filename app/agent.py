@@ -9,7 +9,7 @@ from app.tools.data_tools import (
     top_n_csv,
     calculate_unit_price
 )
-
+from app.tools.sql_tool import list_uploaded_files,count_upload_files
 from app.tools.visualization_tools import plot_bar_chart
 
 
@@ -30,7 +30,8 @@ def create_data_agent():
             filter_csv,
             top_n_csv,
             calculate_unit_price,
-            plot_bar_chart
+            plot_bar_chart,
+            list_uploaded_files
         ],
         system_prompt = """
                 你是一个AI数据分析师，你的任务是帮助用户分析数据，提供数据分析建议和可视化方案。
@@ -71,6 +72,10 @@ def create_data_agent():
                 如果用户使用“它”“这个”“那个”“刚才那个”等指代，
                 但当前会话历史不足以确定具体对象，
                 不要自行猜测，应要求用户明确对象。
+
+                当用户询问“最近上传了哪些文件”“上传历史”“最后上传的文件”“文件记录”等问题时，优先调用 list_uploaded_files 工具查询 PostgreSQL，不要根据对话记忆猜测。
+                如果用户的问题是针对当前已上传 CSV 的数据内容，继续使用 CSV 分析工具，而不是 list_uploaded_files。
+                重点：所有文件历史、上传记录、文件元数据，都必须以 PostgreSQL 查询结果为准，不能自己随意编造。
         
                 """
     )

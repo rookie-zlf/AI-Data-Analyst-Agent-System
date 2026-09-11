@@ -1,7 +1,7 @@
 import os
 import psycopg
 from dotenv import load_dotenv
-from postgres_store import create_file_record
+from postgres_store import create_file_record,list_files
 
 load_dotenv()
 
@@ -13,18 +13,7 @@ conn = psycopg.connect(
         password=os.getenv("POSTGRES_PASSWORD")
 )
 
-create_file_record("12345678-1234-1234-1234-123456789abc", "demo.csv","data/uploads/demo.csv")
+cows = list_files()
 
 
-cursor = conn.cursor()
-
-cursor.execute("""
-SELECT * FROM files ORDER BY id DESC LIMIT 3;""")
-
-rows = cursor.fetchall()
-
-print(rows)
-
-
-
-
+print(cows)
