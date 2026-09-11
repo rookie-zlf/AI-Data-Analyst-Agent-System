@@ -18,18 +18,25 @@ def get_connection():
 
 
 
-def create_file_record(
+def create_file_record( 
         session_id : str,
         filename : str,
         file_path : str
 ):
-   with get_connection() as conn:#自动保护写入数据，替代cursor.close()防止数据泄露
+   
+    #正常离开 with→ commit，异常离开 with→ rollback，由psycopg管理这个过程
+   with get_connection() as conn:
+        #自动保护写入数据，替代cursor.close()防止数据泄露
         with conn.cursor() as cursor:
 
             cursor.execute(
                 """INSERT INTO files (session_id,filename,file_path) VALUES (%s,%s,%s)"""
                 ,
                 (session_id,filename,file_path,)
+            )
+
+            cursor.execute(
+                "SELECT * FROM files2"
             )
     
 
