@@ -59,3 +59,26 @@ SELECT id,session_id,filename,file_path,created_at FROM files ORDER BY id DESC L
 
 --@block
 SELECT id, session_id,filename,file_path,created_at FROM files ORDER BY id ;
+
+
+
+--@block 新建一张表用来保存AI每次生成的SQL查询语句
+
+CREATE TABLE sql_query_logs(
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    session_id UUID,
+    sql_text TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+--@block 删除表
+DROP TABLE sql_query_logs;
+
+--@block 查看数据库中表的信息
+SELECT tablename
+FROM pg_tables
+WHERE schemaname = 'public' 
+
+

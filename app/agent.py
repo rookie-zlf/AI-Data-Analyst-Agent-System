@@ -9,7 +9,11 @@ from app.tools.data_tools import (
     top_n_csv,
     calculate_unit_price
 )
-from app.tools.sql_tool import list_uploaded_files,count_upload_files
+from app.tools.sql_tool import (
+    list_uploaded_files,count_upload_files,
+    get_file_upload_statistics,
+    execute_sql_query,get_sql_schema)
+
 from app.tools.visualization_tools import plot_bar_chart
 
 
@@ -31,7 +35,11 @@ def create_data_agent():
             top_n_csv,
             calculate_unit_price,
             plot_bar_chart,
-            list_uploaded_files
+            list_uploaded_files,
+            count_upload_files,
+            get_file_upload_statistics,
+            execute_sql_query,
+            get_sql_schema
         ],
         system_prompt = """
                 你是一个AI数据分析师，你的任务是帮助用户分析数据，提供数据分析建议和可视化方案。
@@ -76,7 +84,13 @@ def create_data_agent():
                 当用户询问“最近上传了哪些文件”“上传历史”“最后上传的文件”“文件记录”等问题时，优先调用 list_uploaded_files 工具查询 PostgreSQL，不要根据对话记忆猜测。
                 如果用户的问题是针对当前已上传 CSV 的数据内容，继续使用 CSV 分析工具，而不是 list_uploaded_files。
                 重点：所有文件历史、上传记录、文件元数据，都必须以 PostgreSQL 查询结果为准，不能自己随意编造。
-        
+                当用户询问某个文件上传了多少次、哪个文件上传次数最多、各文件的上传次数时，必须调用 get_file_upload_statistics，不要根据文件列表自行计数。
+                当用户的问题需要动态查询 PostgreSQL 数据库时：
+                    1. 如果不确定数据库表结构，先调用 get_sql_schema。
+                    2. 根据 schema 生成正确的 PostgreSQL SELECT SQL。
+                    3. 再调用 execute_sql_query 执行查询。
+                    4. 禁止生成 INSERT、UPDATE、DELETE、DROP、ALTER、TRUNCATE 等修改数据库的 SQL。
+                    5. 精确统计、排序、聚合必须交给 SQL 完成，不要由模型自行计算。
                 """
     )
 
