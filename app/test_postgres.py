@@ -1,21 +1,23 @@
 import os
 import psycopg
 from dotenv import load_dotenv
-from postgres_store import create_file_record,list_files,execute_readonly_query,get_database_schema
+from postgres_store import (create_file_record,list_files,
+                            execute_readonly_query,get_database_schema,
+                            save_agent_turn,save_sql_query_log
+)
+
+from uuid import uuid4
 
 load_dotenv()
 
-conn = psycopg.connect(
-        host=os.getenv("POSTGRES_HOST"),
-        port=int(os.getenv("POSTGRES_PORT")),
-        dbname=os.getenv("POSTGRES_DB"),
-        user=os.getenv("POSTGRES_USER"),
-        password=os.getenv("POSTGRES_PASSWORD")
+turn_id = str(uuid4())
+
+session_id = str(uuid4())
+
+save_agent_turn(
+    turn_id,session_id,'ales.csv 上传过几次？'
 )
 
-#cows = list_files()
-#cows = execute_readonly_query("SELECT id,filename FROM files LIMIT 5")
-
-cows = get_database_schema()
-print(cows)
-
+save_sql_query_log(
+    turn_id,session_id,"SELECT COUNT(*) FROM files WHERE filename = 'sales.csv'","success"
+)

@@ -137,6 +137,9 @@ def chat(request : ChatRequest):
     if sessions_data is None:
         return f"{request.session_id}不存在。"
 
+    #增加turn_id
+    turn_id = str(uuid4())
+
     file_path = sessions_data['file_path']
     messages = sessions_data['messages']
 

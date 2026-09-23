@@ -163,7 +163,6 @@ def get_database_schema():
             }
         )
 
-
     return schema
 
 
@@ -171,5 +170,48 @@ def get_database_schema():
  #   session_id:str,
 
 
+def save_agent_turn(
+        turn_id :str,
+        session_id:str,
+        user_message:str
+):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                    INSERT INTO agent_turns(
+                    turn_id,
+                    session_id,
+                    user_message)
+                    values(
+                    %s,%s,%s)
+                """,
+                (turn_id,session_id,user_message)
+            )
 
-        
+
+
+
+def save_sql_query_log(
+        turn_id : str,
+        session_id : str,
+        sql_text :str,
+        status :str,
+        error_message : str | None = None
+):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO sql_query_logs (
+                turn_id,
+                session_id,
+                sql_text,
+                status,
+                error_message
+                )VALUES(
+                %s,%s,%s,%s,%s)
+                """,
+                (turn_id,session_id,sql_text,status,error_message)
+            )
+    
