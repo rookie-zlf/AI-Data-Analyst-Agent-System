@@ -4,12 +4,17 @@ from fastapi import FastAPI,File,UploadFile
 from pydantic import BaseModel
 from app.agent import create_data_agent
 from uuid import uuid4
-from app.postgres_store import create_file_record,delete_file_record
+from app.postgres_store import (create_file_record,delete_file_record,
+                                save_agent_turn,save_sql_query_log)
 
 #langchain官方的消息对象，不用自己手动维护dict消息1队列
 from langchain_core.messages import HumanMessage,AIMessage
 from app.session_store import save_session,get_session,get_session_ttl,delete_session
 import logging
+
+from app.trace_context import (
+    current_session_id,current_turn_id
+)
 
 from fastapi.responses import JSONResponse
 
@@ -129,17 +134,23 @@ def up_load_csv(
 def chat(request : ChatRequest):
 
     session_id = request.session_id
-    #查看对话剩余时间
-    life_remain_time = get_session_ttl(session_id)
 
     sessions_data = get_session(session_id)
 
     if sessions_data is None:
         return f"{request.session_id}不存在。"
 
-    #增加turn_id
+    #增加turn_id，每一次调用chat都新增一个turn_id记录当前对话内容，与session_id不同
     turn_id = str(uuid4())
 
+    #记录当前询问内容
+    save_agent_turn(
+        turn_id = turn_id,
+        session_id=session_id,
+        user_message=request.message
+    )
+
+    
     file_path = sessions_data['file_path']
     messages = sessions_data['messages']
 
@@ -166,14 +177,38 @@ def chat(request : ChatRequest):
         elif message['role'] == 'assistant':
             langchain_messages.append(AIMessage(content = message['content']))
 
+    #进入agent之前设置上下文标签管理，让agent调用的所有工具确保是同一个对话
+    session_token = current_session_id.set(session_id)
+    turn_token = current_turn_id.set(turn_id)
 
 
-    #包含hunman，toolcall的所有消息,'把干净历史喂给agent'
-    result = agent.invoke(
-        {
-            'messages' : langchain_messages
-        }
-    )
+    try:
+        #包含hunman，toolcall的所有消息,'把干净历史喂给agent'
+        result = agent.invoke(
+            {
+                'messages' : langchain_messages
+            }
+        )
+
+    except Exception as e:
+        logger.exception(
+            "Agent执行失败，session = %s,turn_id = %s",
+            session_id,turn_id
+        )
+        return JSONResponse(
+            status_code=500,
+            context={
+                "success":False,
+                "message":"Agent执行失败，请稍后再试。"
+            }
+        )
+
+    finally:
+        #清理上下文，确保其他询问调用不会重复使用同一个对话
+        current_turn_id.reset(turn_token)
+        current_session_id.reset(session_token)
+        
+
 
     last_message = result['messages'][-1]
 
@@ -189,13 +224,17 @@ def chat(request : ChatRequest):
     sessions_data['messages'] = messages
 
     save_session(request.session_id,sessions_data)
-
+    #查看对话剩余时间
+    life_remain_time = get_session_ttl(session_id)
+    
     return {
         'success':True,
         'session_id':session_id,
+        'turn_id':turn_id,
         'answer':answer,
-        'remain_time':life_remain_time
+        'remain_time':life_remain_time     
     }
+
 
 
 

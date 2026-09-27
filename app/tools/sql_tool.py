@@ -1,5 +1,12 @@
 from langchain_core.tools import tool
-from app.postgres_store import list_files,count_files,execute_readonly_query,get_database_schema
+from app.postgres_store import list_files,count_files,execute_readonly_query,get_database_schema,save_sql_query_log
+import logging
+from app.trace_context import (current_turn_id,current_session_id)
+
+
+logger = logging.getLogger(__name__)
+
+
 
 
 @tool
@@ -33,9 +40,44 @@ def execute_sql_query(sql:str):
     且现有固定 SQL 工具无法直接回答时使用。
 
     只能执行 SELECT 查询，不允许修改数据库。"""
+    session_id = current_session_id.get()
+    turn_id = current_turn_id.get()
 
-    result = execute_readonly_query(sql)
+    if session_id is None or turn_id is None:
+        raise RuntimeError('缺少当前 SQL Trace 上下文')
 
+    try:
+        result = execute_readonly_query(sql)
+    except Exception as e:
+        #SQL sql本身执行失败
+        try:
+            save_sql_query_log(
+                turn_id = turn_id,
+                session_id= session_id,
+                sql_text=sql,
+                status="failed",
+                error_message=str(e)
+            )
+        except Exception:
+            logger.exception(
+                "保存失败SQL日志时发生异常，turn_id = %s",
+                turn_id
+            )
+        raise
+    #SQL执行成功
+    try:
+        save_sql_query_log(
+            turn_id = turn_id,
+            session_id=session_id,
+            sql_text = sql,
+            status="success"
+        )
+    except Exception:
+        logger.exception(
+            "SQL执行成功但是SQL保存失败，turn_id = %s",
+            turn_id
+        )
+    
     return {
         'sql':sql,
         'result':result
