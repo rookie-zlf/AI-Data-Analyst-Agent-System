@@ -1,0 +1,14 @@
+"id","turn_id","session_id","sql_text","status","error_message","created_at","source","tool_name"
+"12","a44840f9-85c0-483a-ba3c-8a78466b6dce","67a39082-24ef-4b42-830e-e04b72b1e2f6","
+            SELECT 
+                    filename,
+                    COUNT(*) AS upload_count
+            FROM 
+                    files
+            GROUP BY 
+                    filename
+            ORDER BY
+                    upload_count 
+            DESC;
+            ","success","get_file_upload_statistics","2026-09-28 17:00:08.920862","","fix_tool"
+"11","87a55ed6-a75e-404d-b13a-a6d251956cc4","4f81ec27-a715-4fd0-a103-b138bcbe40ff","SELECT COUNT(*) FROM files WHERE filename = 'sales.csv'","success","","2026-09-23 16:45:12.901712","",""

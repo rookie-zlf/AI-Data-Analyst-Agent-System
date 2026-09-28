@@ -157,3 +157,13 @@ SELECT * FROM agent_turns ORDER BY id DESC;
 --@block 查表
 SELECT * FROM sql_query_logs ORDER BY id DESC;
 
+--@block 添加新列
+ALTER TABLE sql_query_logs 
+ADD COLUMN source VARCHAR(20);
+
+ALTER TABLE sql_query_logs 
+ADD COLUMN tool_name VARCHAR(20);
+
+--@block 更改sql_query_logs更改tool_name字符限制长度
+ALTER TABLE sql_query_logs
+ALTER COLUMN tool_name TYPE VARCHAR(100);

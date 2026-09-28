@@ -78,7 +78,7 @@ def count_files_by_names():
         with conn.cursor() as cursor:
             cursor.execute(
                 """SELECT
-                filenames,
+                filename,
                 COUNT(*) AS upload_count 
                 FROM files
                 GROUP BY filename
@@ -191,12 +191,14 @@ def save_agent_turn(
 
 
 
-
+#保存当前查询记录
 def save_sql_query_log(
         turn_id : str,
         session_id : str,
         sql_text :str,
         status :str,
+        source:str,
+        tool_name:str,
         error_message : str | None = None
 ):
     with get_connection() as conn:
@@ -208,10 +210,20 @@ def save_sql_query_log(
                 session_id,
                 sql_text,
                 status,
+                source,
+                tool_name,
                 error_message
                 )VALUES(
-                %s,%s,%s,%s,%s)
+                %s,%s,%s,%s,%s,%s,%s)
                 """,
-                (turn_id,session_id,sql_text,status,error_message)
+                (
+                    turn_id,
+                    session_id,
+                    sql_text,
+                    status,
+                    source,
+                    tool_name,
+                    error_message
+                )
             )
     

@@ -197,7 +197,7 @@ def chat(request : ChatRequest):
         )
         return JSONResponse(
             status_code=500,
-            context={
+            content={
                 "success":False,
                 "message":"Agent执行失败，请稍后再试。"
             }
