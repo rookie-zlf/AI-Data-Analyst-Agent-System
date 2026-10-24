@@ -1,7 +1,10 @@
 from langchain_chroma import Chroma
 from app.rag.embeddings import create_embeddings
+from functools import lru_cache
 
 
+
+@lru_cache(maxsize=4)#
 def create_retriever(k :int = 1):
     embeddings = create_embeddings()
 
@@ -23,7 +26,7 @@ def create_retriever(k :int = 1):
 
 if __name__ == "__main__":
 
-    retriever = create_retriever()
+   """  retriever = create_retriever()
 
     query = "什么样的客户能成为vip？"
 
@@ -32,3 +35,9 @@ if __name__ == "__main__":
     for doc in documents:
         print("检索到的内容：",doc.page_content)
         print("信息来源：",doc.metadata)
+ """
+retriever1 = create_retriever(k=2)
+retriever2 = create_retriever(k=2)
+
+print(retriever1 is retriever2)
+print(create_retriever.cache_info())

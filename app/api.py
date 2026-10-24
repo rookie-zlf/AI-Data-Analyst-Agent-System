@@ -167,8 +167,6 @@ def chat(request : ChatRequest):
     )
 
     #格式翻译，将json格式翻译成langchain的格式
-
-
     langchain_messages = []
 
     #is比较是否为同一个对象，==比较值是否相等
