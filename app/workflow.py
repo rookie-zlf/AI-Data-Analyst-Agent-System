@@ -1,5 +1,9 @@
 from typing import TypedDict,NotRequired
 from langgraph.graph import StateGraph,START,END
+from app.tools.rag_tools import search_knowlege_base
+
+
+
 
 class WorkflowState(TypedDict):
     question:str
@@ -24,7 +28,12 @@ def route_question(state:WorkflowState) -> str:
     return "csv" 
 
 def rag_node(state:WorkflowState):
-    return {'result':"选择了RAG知识检索"}
+    question = state["clean_question"]
+    result = search_knowlege_base.invoke(
+        {"query":question}
+    )
+    return {'result':result}
+
 
 def sql_node(state:WorkflowState):
     return {"result":"选择了 PostgreSQL 查询"}

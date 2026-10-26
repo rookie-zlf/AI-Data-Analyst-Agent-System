@@ -25,19 +25,9 @@ def create_retriever(k :int = 1):
 
 
 if __name__ == "__main__":
+    
+    retriever1 = create_retriever(k=2)
+    retriever2 = create_retriever(k=2)
 
-   """  retriever = create_retriever()
-
-    query = "什么样的客户能成为vip？"
-
-    documents = retriever.invoke(query)
-
-    for doc in documents:
-        print("检索到的内容：",doc.page_content)
-        print("信息来源：",doc.metadata)
- """
-retriever1 = create_retriever(k=2)
-retriever2 = create_retriever(k=2)
-
-print(retriever1 is retriever2)
-print(create_retriever.cache_info())
+    print(retriever1 is retriever2)
+    print(create_retriever.cache_info())
