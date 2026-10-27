@@ -1,13 +1,13 @@
 from typing import TypedDict,NotRequired
 from langgraph.graph import StateGraph,START,END
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage,BaseMessage,AIMessage
 
 from app.agent import create_data_agent
 
 agent = create_data_agent()
 
 class AgentWorkflowState(TypedDict):
-    question:str
+    messages:list[BaseMessage]
     answer:NotRequired[str]
 
 
@@ -16,7 +16,7 @@ def run_agent(state:AgentWorkflowState):
 
     #与大模型交互转换成human语言
     result = agent.invoke(
-        {'messages':HumanMessage(content=state['question'])}
+        {'messages':state['messages']}
     )
 
     answer = result['messages'][-1].content
@@ -39,10 +39,18 @@ workflow = builder.compile()
 
 if __name__ == "__main__":
 
+    messages = [
+        HumanMessage(content="VIP 客户需要满足什么条件？"), 
+        AIMessage(content="累计消费金额超过 10000 元的客户属于 VIP。"),
+        HumanMessage(content="那恰好 10000 元算不算？")
+    ]
+
     result =  workflow.invoke({
-        "question":  "VIP 客户需要满足什么条件？"    
+        "messages":  messages    
     })
 
-    print(result['question'],"\n",result['answer'])
+    print(result['messages'],"\n",result['answer'])
+
+    
 
 

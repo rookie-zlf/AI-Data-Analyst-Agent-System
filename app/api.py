@@ -17,6 +17,8 @@ from app.trace_context import (
 )
 
 from fastapi.responses import JSONResponse
+from app.workflow_agent import  build_agent_workflow
+
 
 
 
@@ -28,6 +30,8 @@ class ChatRequest(BaseModel):
 logger = logging.getLogger(__name__)
 
 agent = create_data_agent()
+
+workflow = build_agent_workflow(agent)
 
 #创建后端应用
 app = FastAPI(
@@ -183,7 +187,7 @@ def chat(request : ChatRequest):
 
     try:
         #包含hunman，toolcall的所有消息,'把干净历史喂给agent'
-        result = agent.invoke(
+        result = workflow.invoke(
             {
                 'messages' : langchain_messages
             }
@@ -209,9 +213,8 @@ def chat(request : ChatRequest):
         
 
 
-    last_message = result['messages'][-1]
 
-    answer = last_message.content
+    answer = result['answer']
 
     messages.append(
         {
