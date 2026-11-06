@@ -19,6 +19,12 @@ from app.trace_context import (
 from fastapi.responses import JSONResponse
 from app.workflow_agent import  build_agent_workflow
 
+import asyncio #实现异步编程
+from fastapi.responses import StreamingResponse#流式响应
+
+import json
+
+
 
 
 
@@ -187,6 +193,7 @@ def chat(request : ChatRequest):
 
     try:
         #包含hunman，toolcall的所有消息,'把干净历史喂给agent'
+        #调用deepseek模型，与大模型交互
         result = workflow.invoke(
             {
                 'messages' : langchain_messages
@@ -239,5 +246,136 @@ def chat(request : ChatRequest):
 
 
 
+@app.get("/stream-test")
+
+async def stream_test():
+    async def event_generator():
+        words = ['你好',"，","我是","AI","数据分析助手"]
+
+        for word in words:
+            yield f"data:{word}\n\n"
+            await asyncio.sleep(1)
 
 
+        yield "data:[DONE]\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
+
+
+@app.get("/stream-ai-test")
+def stream_ai_test():
+    def generate_events():
+        messages = [
+            HumanMessage(content = "VIP 客户需要满足什么条件？")
+        ]
+
+        try:
+            for chunk,matedata in agent.stream(
+                {'messages':messages},
+                stream_mode= "messages"
+            ):
+                if matedata.get("langgraph_node") != "model":#筛选出是model节点产生的信息
+                    continue
+
+                if isinstance(chunk.content,str) and chunk.content:
+                    #从字典转换成字符串
+                    data = json.dumps(
+                        {"text":chunk.content},
+                        ensure_ascii=False
+                    )
+                    #把字符串输出到get端口
+                    yield f"event:token\ndata:{data}\n\n"
+
+            yield "event:done\ndata:{}\n\n"
+
+        except Exception:
+            logger.exception("AI SSE流式生成失败")
+            yield (
+                'event:error\n'
+                'data:{"message":"生成失败"}\n\n'
+            )
+
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream",
+        headers = {
+            "cache-control":"no-cache"
+        }
+    )
+
+
+
+@app.post("/chat/stream")
+
+def chat_stream(request : ChatRequest):
+
+    session_id  = request.session_id
+    session_data = get_session(session_id)
+
+    if session_data is None:
+        return JSONResponse(
+            status_code=404,
+            content = {
+                "success":"False",
+                "message":"session不存在或已过期"
+            }
+        )
+
+#接入deepseek模型   
+    async def event_generator():
+
+       messages = [
+           HumanMessage(content=request.message)
+       ]
+
+       try:
+            async for chunk,metadata in agent.astream(
+                {"message":messages},
+                stream_mode="messages"
+            ):
+                if metadata.get('langgraph_node') != "model":
+                    continue
+
+                if isinstance(chunk.content,str) and chunk.content:
+                    data = json.dumps(
+                        {"text":chunk.content},
+                        ensure_ascii=False
+                    )
+
+                    yield f"event: token\ndata:{data}\n\n"
+
+
+            yield "event:done\ndata:{}\n\n"
+
+
+       except Exception:
+            logger.exception("deepseek SSE生成失败。")
+            yield (
+                'event:error\n'
+                'data:{messages生成失败}\n\n'
+            )
+            yield "event:done\ndata:{}\n\n"
+
+       
+
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control":"no-cache"}
+    )
+
+
+    
+
+
+
+
+
+
+
+
+                

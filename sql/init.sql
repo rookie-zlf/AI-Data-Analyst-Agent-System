@@ -167,3 +167,18 @@ ADD COLUMN tool_name VARCHAR(20);
 --@block 更改sql_query_logs更改tool_name字符限制长度
 ALTER TABLE sql_query_logs
 ALTER COLUMN tool_name TYPE VARCHAR(100);
+
+
+--@block
+
+SELECT 
+turn_id,
+sql_text,
+status,
+source,
+tool_name
+
+FROM 
+sql_query_logs
+
+WHERE turn_id = 'c9075d3e-7dfc-4058-9e2f-af16f2fba757';
