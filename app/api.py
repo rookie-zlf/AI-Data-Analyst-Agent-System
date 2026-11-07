@@ -314,39 +314,81 @@ def chat_stream(request : ChatRequest):
 
     session_id  = request.session_id
     session_data = get_session(session_id)
+    history = session_data.get("messages",[])#有就返回，没有就返回空列表
 
-    if session_data is None:
-        return JSONResponse(
-            status_code=404,
-            content = {
-                "success":"False",
-                "message":"session不存在或已过期"
-            }
-        )
+    langchain_messages = []
 
-#接入deepseek模型   
+    for message in history:#把历史消息分别以user和assistant的身份保存在langchainmessages中,重新载入以往的历史聊天信息
+        if message['role'] == 'user':
+            langchain_messages.append(
+                HumanMessage(content=message['content'])
+            )
+        elif message['role'] == 'assistant':
+            langchain_messages.append(
+                AIMessage(content=message['content'])
+            )
+
+    file_path = session_data['file_path']
+
+    user_message = (
+        f'当前需要分析的csv文件路径是：{file_path}\n'
+        f'用户的问题：{request.message}'
+                )
+    
+    langchain_messages.append(
+        HumanMessage(content= user_message)
+    )
+
+#进入模型调用前，检查一下是否成功调用历史信息
+
+    print('当前session_id:',session_id)
+    print('当前用户问题:',request.message)
+    print('当前csv数据地址：',session_data.get('file_path'))
+    print('Redis历史消息数量：',len(history))
+    print('历史输入最后一条数据：\n',langchain_messages[-1].content)
+
+
+#接入deepseek模型 ,需要异步操作，因为等待大模型返回token需要时间，等待时间可以让出执行权  
     async def event_generator():
+       answer_parts= []
 
-       messages = [
-           HumanMessage(content=request.message)
-       ]
 
        try:
             async for chunk,metadata in agent.astream(
-                {"message":messages},
+                {"messages":langchain_messages},
                 stream_mode="messages"
             ):
                 if metadata.get('langgraph_node') != "model":
                     continue
 
                 if isinstance(chunk.content,str) and chunk.content:
+                    answer_parts.append(chunk.content)
                     data = json.dumps(
                         {"text":chunk.content},
                         ensure_ascii=False
                     )
 
                     yield f"event: token\ndata:{data}\n\n"
+                    
+            #拼接答案
+            answer = "".join(answer_parts)
 
+            updata_messages = [
+                    *history,
+                    {
+                        'role':"user",
+                        'content':user_message
+                    },
+                    {
+                        'role':'assistant',
+                        'content':answer
+                    }
+                ]
+
+            session_data['messages'] = updata_messages#更新最近对话信息
+
+            save_session(session_id,session_data)#存储最新对话
+            
 
             yield "event:done\ndata:{}\n\n"
 
