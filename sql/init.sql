@@ -182,3 +182,19 @@ FROM
 sql_query_logs
 
 WHERE turn_id = 'c9075d3e-7dfc-4058-9e2f-af16f2fba757';
+
+
+--@block
+
+SELECT
+    t.turn_id,
+    t.user_message,
+    l.sql_text,
+    l.status,
+    l.source,
+    l.tool_name
+FROM agent_turns t
+LEFT JOIN sql_query_logs l
+    ON t.turn_id = l.turn_id
+WHERE t.user_message LIKE '%上传过几次%'
+ORDER BY t.turn_id;

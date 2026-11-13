@@ -63,6 +63,19 @@ def delete_session(session_id : str):
 
     
 
+if __name__ == "__main__":
+
+
+    session_data = get_session("21f0eaa1-a792-49eb-b6dc-ced7e75477e9")
+   
+    messages = session_data['messages']
+    print(len(messages))
+
+
+    for message in messages:
+        print(message['role'],'\n',message['content'][:50],'\n\n')
+
+
 
 
     

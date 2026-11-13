@@ -21,9 +21,8 @@ from app.workflow_agent import  build_agent_workflow
 
 import asyncio #实现异步编程
 from fastapi.responses import StreamingResponse#流式响应
-
 import json
-
+from fastapi import HTTPException
 
 
 
@@ -41,7 +40,11 @@ workflow = build_agent_workflow(agent)
 
 #创建后端应用
 app = FastAPI(
-    title = "AI Data Analyst Agent System"
+    title = "AI Data Analyst Agent System",
+    swagger_ui_parameters={
+        "swagger_js_url": "https://cdn.staticfile.org/swagger-ui/5.1.0/swagger-ui-bundle.js",
+        "swagger_css_url": "https://cdn.staticfile.org/swagger-ui/5.1.0/swagger-ui.css",
+    }
               )
 
 
@@ -314,8 +317,15 @@ def chat_stream(request : ChatRequest):
 
     session_id  = request.session_id
     session_data = get_session(session_id)
-    history = session_data.get("messages",[])#有就返回，没有就返回空列表
 
+    #判断session是否存在
+    if session_data is None:
+        raise HTTPException(
+            status_code=404,
+            detail = "session不存在或已过期"
+        )
+    
+    history = session_data.get("messages",[])#有就返回，没有就返回空列表
     langchain_messages = []
 
     for message in history:#把历史消息分别以user和assistant的身份保存在langchainmessages中,重新载入以往的历史聊天信息
@@ -339,6 +349,7 @@ def chat_stream(request : ChatRequest):
         HumanMessage(content= user_message)
     )
 
+
 #进入模型调用前，检查一下是否成功调用历史信息
 
     print('当前session_id:',session_id)
@@ -351,9 +362,27 @@ def chat_stream(request : ChatRequest):
 #接入deepseek模型 ,需要异步操作，因为等待大模型返回token需要时间，等待时间可以让出执行权  
     async def event_generator():
        answer_parts= []
+       #用 ContextVar 保存"当前会话 ID"和"当前轮次 ID"，并发场景下每个任务读到的都是自己的值，不用在函数之间层层传参。
+        #每开一次新对话就新创建一个turn_id
+       turn_id = str(uuid4())
+       session_token  = current_session_id.set(session_id)
+       turn_token = current_turn_id.set(turn_id)
 
+           
+       try: 
+            
+            print("当前session_token：",current_session_id.get())
+            print("当前turn_token:",current_turn_id.get())
 
-       try:
+            #记录当前询问内容
+            await asyncio.to_thread(
+                         save_agent_turn,
+                         turn_id = turn_id,
+                         session_id=session_id,
+                         user_message=request.message
+                )
+            
+            #核心调用大模型返回数据
             async for chunk,metadata in agent.astream(
                 {"messages":langchain_messages},
                 stream_mode="messages"
@@ -389,7 +418,6 @@ def chat_stream(request : ChatRequest):
 
             save_session(session_id,session_data)#存储最新对话
             
-
             yield "event:done\ndata:{}\n\n"
 
 
@@ -397,18 +425,20 @@ def chat_stream(request : ChatRequest):
             logger.exception("deepseek SSE生成失败。")
             yield (
                 'event:error\n'
-                'data:{messages生成失败}\n\n'
+                'data:{"message":"生成失败"}\n\n'
             )
-            yield "event:done\ndata:{}\n\n"
 
-       
-
-
+       finally:
+           #重新设置新的turnid保存新的一轮对话
+           current_turn_id.reset(turn_token)
+           current_session_id.reset(session_token)
+           
+           
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={"Cache-Control":"no-cache"}
-    )
+    ) 
 
 
     
