@@ -1,4 +1,5 @@
 from pathlib import Path
+from dotenv import load_dotenv
 import shutil
 from fastapi import FastAPI,File,UploadFile
 from pydantic import BaseModel
@@ -24,6 +25,29 @@ from fastapi.responses import StreamingResponse#流式响应
 import json
 from fastapi import HTTPException
 
+from fastapi import Depends,HTTPException
+
+from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
+from app.auth import verify_access_token
+
+load_dotenv()
+
+security = HTTPBearer()#作用是从 HTTP 请求头中提取 Bearer 身份凭证。
+
+def get_current_user(
+        #在执行 get_current_user() 之前，先执行 security 依赖，从请求中获取 Bearer Token，再把结果传入 credentials。
+        credentials : HTTPAuthorizationCredentials = Depends(security) 
+)->str:
+
+    token  = credentials.credentials
+    try:
+        user_id = verify_access_token(token)
+        return user_id
+    except ValueError:
+        raise HTTPException(status_code=401,
+                            detail="Token 无效或已过期",
+                            #是 HTTP 身份认证的标准响应头，用来告诉客户端该接口需要 Bearer 身份认证。
+                            headers={"www-Authenticate":"Bearer"})
 
 
 
@@ -248,69 +272,6 @@ def chat(request : ChatRequest):
     }
 
 
-
-@app.get("/stream-test")
-
-async def stream_test():
-    async def event_generator():
-        words = ['你好',"，","我是","AI","数据分析助手"]
-
-        for word in words:
-            yield f"data:{word}\n\n"
-            await asyncio.sleep(1)
-
-
-        yield "data:[DONE]\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream"
-    )
-
-
-@app.get("/stream-ai-test")
-def stream_ai_test():
-    def generate_events():
-        messages = [
-            HumanMessage(content = "VIP 客户需要满足什么条件？")
-        ]
-
-        try:
-            for chunk,matedata in agent.stream(
-                {'messages':messages},
-                stream_mode= "messages"
-            ):
-                if matedata.get("langgraph_node") != "model":#筛选出是model节点产生的信息
-                    continue
-
-                if isinstance(chunk.content,str) and chunk.content:
-                    #从字典转换成字符串
-                    data = json.dumps(
-                        {"text":chunk.content},
-                        ensure_ascii=False
-                    )
-                    #把字符串输出到get端口
-                    yield f"event:token\ndata:{data}\n\n"
-
-            yield "event:done\ndata:{}\n\n"
-
-        except Exception:
-            logger.exception("AI SSE流式生成失败")
-            yield (
-                'event:error\n'
-                'data:{"message":"生成失败"}\n\n'
-            )
-
-    return StreamingResponse(
-        generate_events(),
-        media_type="text/event-stream",
-        headers = {
-            "cache-control":"no-cache"
-        }
-    )
-
-
-
 @app.post("/chat/stream")
 
 def chat_stream(request : ChatRequest):
@@ -441,9 +402,13 @@ def chat_stream(request : ChatRequest):
     ) 
 
 
-    
 
 
+@app.get("/auth/me")
+def get_my_info(
+    user_id :str = Depends(get_current_user)
+):
+    return {"user_id":user_id}
 
 
 
